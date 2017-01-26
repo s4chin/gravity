@@ -3,11 +3,9 @@ window.addEventListener('load', init, false);
 var canvas, ctx, points, gravity;
 var width, height;
 var mouse;
-// var mouse = {
-//   x: 0,
-//   y: 0,
-// };
 var vinit = 1;
+var clicked;
+var explosion = false;
 
 window.requestAnimationFrame = (function(){
   return  window.requestAnimationFrame       ||
@@ -22,7 +20,8 @@ window.requestAnimationFrame = (function(){
 
 var s = {
   num_points: 100,
-  mousemass: 150,
+  mousemass: 160,
+  friction: 0.01,
 }
 
 var gui = new dat.GUI();
@@ -52,7 +51,12 @@ class Point {
 
       this.vx += ax;
       this.vy += ay;
+
     }
+
+    // Add friction so they don't move at constant speed without interference
+    this.vx *= (1 - s.friction);
+    this.vy *= (1 - s.friction);
 
     this.px += this.vx;
     this.py += this.vy;
@@ -74,24 +78,20 @@ function init() {
   width = canvas.width = window.innerWidth;
   height = canvas.height = window.innerHeight;
 
-  // Init mouse coordinates
-  // mouse = {
-  //   x: width/2,
-  //   y: height/2,
-  // };
-
   canvas.addEventListener("mousemove", getMousePos, false);
   canvas.addEventListener("touchmove", getMousePos, false);
   canvas.addEventListener("mousedown", function() {
     s.mousemass *= s.mousemass > 0 ? -1 : 1;
+    clicked = true;
   }, false);
   canvas.addEventListener("mouseup", function() {
     s.mousemass *= s.mousemass < 0 ? -1 : 1;
+    clicked = false;
   }, false);
   canvas.addEventListener("mouseleave", function(e) {
     mouse = null;
   }, false);
-
+  canvas.addEventListener("dblclick", explode, false);
 
   points = assignPoints(s.num_points);
   window.requestAnimationFrame(draw);
@@ -107,19 +107,28 @@ function draw() {
     points = removePoints(points, s.num_points);
   }
   // Update all points
-  for(i = 0; i < points.length; i++) {
-    points[i].update(mouse);
+  if(!explosion) {
+    for(i = 0; i < points.length; i++) {
+      points[i].update(mouse);
+    }
+  } else {
+    explosion = false;
   }
   // Transparency code
   ctx.save();
   ctx.beginPath();
-  ctx.fillStyle = 'rgba(0, 51, 51, 0.6)';
+  ctx.fillStyle = 'rgba(0, 20, 20, 0.6)';
   ctx.fillRect(0, 0, width, height);
 
   if(mouse) {
     var gradient = ctx.createRadialGradient(mouse.x, mouse.y, Math.abs(s.mousemass*0.75), mouse.x, mouse.y, Math.max(width, height));
-    gradient.addColorStop(0,"rgba(0, 0, 0, 0)");
-    gradient.addColorStop(1,"black");
+    if(!clicked) {
+      gradient.addColorStop(0,"rgba(0, 51, 51, 0.6)");
+      gradient.addColorStop(1,"black");
+    } else {
+      gradient.addColorStop(1,"rgba(0, 51, 51, 0.6)");
+      gradient.addColorStop(0,"rgba(0, 20, 20, 0.6)");
+    }
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, width, height);
   }
@@ -155,6 +164,7 @@ function removePoints(points, limit) {
   }
   return points;
 }
+
 function getMousePos(e) {
   var rect = canvas.getBoundingClientRect();
   mouse = {
@@ -162,4 +172,15 @@ function getMousePos(e) {
     y: Math.round((e.clientY-rect.top)/(rect.bottom-rect.top)*height)
   };
   return;
+}
+
+function explode(e) {
+  e.preventDefault();
+  var mmass = s.mousemass;
+  s.mousemass = -10000;
+  explosion = true;
+  for(i = 0; i < points.length; i++) {
+    points[i].update(mouse);
+  }
+  s.mousemass = mmass;
 }
