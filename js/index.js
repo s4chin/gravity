@@ -6,6 +6,7 @@ var mouse;
 var vinit = 1;
 var clicked;
 var explosion = false;
+const speed_cap = 10;
 
 window.requestAnimationFrame = (function(){
   return  window.requestAnimationFrame       ||
@@ -28,6 +29,7 @@ var gui = new dat.GUI();
 
 gui.add(s, "num_points").min(50).max(200).step(1).name("No. of points");
 gui.add(s, "mousemass").min(75).max(400).step(1).name("Mouse mass");
+gui.add(s, "friction").min(0).max(1).step(0.01).name("Friction");
 gui.close();
 
 class Point {
@@ -36,7 +38,6 @@ class Point {
     this.vy = Math.random()*2*vinit-vinit;
     this.px = Math.floor(Math.random()*w);
     this.py = Math.floor(Math.random()*h);
-    // this.mass = Math.random();
   }
 
   update(mouse) {
@@ -51,7 +52,13 @@ class Point {
 
       this.vx += ax;
       this.vy += ay;
+    }
 
+    if(this.vx > speed_cap || this.vx < -speed_cap) {
+      this.vx = this.vx > 0 ? speed_cap : -speed_cap;
+    }
+    if(this.vy > speed_cap || this.vy < -speed_cap) {
+      this.vy = this.vy > 0 ? speed_cap : -speed_cap;
     }
 
     // Add friction so they don't move at constant speed without interference
@@ -61,11 +68,14 @@ class Point {
     this.px += this.vx;
     this.py += this.vy;
 
+    // Make stuff harder to go off screen
     if(this.px < 0 || this.px > width) {
       this.vx *= -1;
+      this.px = this.px < 0 ? 0 : width;
     }
     if(this.py < 0 || this.py > height) {
       this.vy *= -1;
+      this.py = this.py < 0 ? 0 : height;
     }
   }
 }
